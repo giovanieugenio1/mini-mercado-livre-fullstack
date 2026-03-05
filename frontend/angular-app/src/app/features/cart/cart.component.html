@@ -1,0 +1,121 @@
+<div class="page-header">
+  <h1>Carrinho</h1>
+</div>
+
+@if (cart.items().length === 0) {
+  <div class="empty-state">
+    <h3>Seu carrinho esta vazio</h3>
+    <p>Adicione produtos ao carrinho para continuar.</p>
+    <a routerLink="/products" class="btn btn-primary">
+      Explorar Produtos
+    </a>
+  </div>
+} @else {
+  <div class="cart-layout">
+    <div class="cart-items-section">
+      <div class="card">
+        <table class="cart-table">
+          <thead>
+            <tr>
+              <th>Produto</th>
+              <th class="text-center">Quantidade</th>
+              <th class="text-right">Preco Unit.</th>
+              <th class="text-right">Total</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of cart.items(); track item.product.id) {
+              <tr class="cart-row">
+                <td>
+                  <div class="cart-product-info">
+                    <div class="cart-product-image-placeholder">
+                      @if (item.product.imageUrl) {
+                        <img [src]="item.product.imageUrl" [alt]="item.product.title" class="cart-product-thumb" />
+                      } @else {
+                        <span class="cart-product-icon">&#128722;</span>
+                      }
+                    </div>
+                    <div>
+                      <a [routerLink]="['/products', item.product.id]" class="cart-product-title">
+                        {{ item.product.title }}
+                      </a>
+                      <p class="text-sm text-muted">{{ item.product.category }}</p>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <div class="qty-controls">
+                    <button class="qty-btn" (click)="updateQty(item.product.id, -1)">-</button>
+                    <span class="qty-value">{{ item.quantity }}</span>
+                    <button class="qty-btn" (click)="updateQty(item.product.id, 1)" [disabled]="item.quantity >= item.product.stock">+</button>
+                  </div>
+                </td>
+                <td class="text-right price-cell">{{ formatPrice(item.product.price) }}</td>
+                <td class="text-right price-cell font-semibold">{{ formatPrice(item.product.price * item.quantity) }}</td>
+                <td class="text-right">
+                  <button class="btn btn-ghost btn-sm remove-btn" (click)="remove(item.product.id)" title="Remover item">
+                    &#10005;
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <div class="cart-actions-row">
+        <a routerLink="/products" class="btn btn-ghost">
+          &#8592; Continuar Comprando
+        </a>
+        <button class="btn btn-ghost btn-sm" (click)="cart.clear()">
+          Limpar Carrinho
+        </button>
+      </div>
+    </div>
+
+    <div class="cart-summary card">
+      <div class="card-body">
+        <h2 class="summary-title">Resumo do Pedido</h2>
+
+        <div class="summary-line">
+          <span class="text-muted">Subtotal ({{ cart.count() }} item(s))</span>
+          <span>{{ formatPrice(cart.total()) }}</span>
+        </div>
+        <div class="summary-line">
+          <span class="text-muted">Frete</span>
+          <span class="text-success">Gratis</span>
+        </div>
+        <div class="summary-divider"></div>
+        <div class="summary-total">
+          <span class="font-bold">Total</span>
+          <span class="price font-bold total-price">{{ formatPrice(cart.total()) }}</span>
+        </div>
+
+        @if (error()) {
+          <div class="error-msg">{{ error() }}</div>
+        }
+
+        <button
+          class="btn btn-primary btn-lg w-full checkout-btn"
+          [disabled]="loading()"
+          (click)="checkout()"
+        >
+          @if (loading()) {
+            Processando...
+          } @else if (!isLoggedIn) {
+            Entrar para Finalizar
+          } @else {
+            Finalizar Pedido
+          }
+        </button>
+
+        @if (!isLoggedIn) {
+          <p class="text-sm text-muted text-center mt-2">
+            Voce precisa estar logado para finalizar a compra.
+          </p>
+        }
+      </div>
+    </div>
+  </div>
+}

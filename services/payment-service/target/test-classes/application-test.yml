@@ -1,0 +1,12 @@
+spring:
+  kafka:
+    bootstrap-servers: ${spring.embedded.kafka.brokers}
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://localhost:9999/mock-jwks  # não será chamado (JwtDecoder mockado)
+
+app:
+  payment:
+    max-authorized-amount: 50000.00

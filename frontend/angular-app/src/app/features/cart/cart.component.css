@@ -1,0 +1,263 @@
+.cart-layout {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+/* Cart items */
+.cart-items-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.cart-table {
+  width: 100%;
+}
+
+.cart-table th {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  padding: 0.75rem 1rem;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+
+.cart-table th.text-center {
+  text-align: center;
+}
+
+.cart-table th.text-right {
+  text-align: right;
+}
+
+.cart-row td {
+  padding: 1rem;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.cart-row:last-child td {
+  border-bottom: none;
+}
+
+.cart-row:hover td {
+  background: #f8fafc;
+}
+
+/* Product info in cart */
+.cart-product-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.cart-product-image-placeholder {
+  width: 3rem;
+  height: 3rem;
+  background: #f1f5f9;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.cart-product-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cart-product-icon {
+  font-size: 1.25rem;
+  opacity: 0.3;
+}
+
+.cart-product-title {
+  font-weight: 600;
+  color: #1e293b;
+  font-size: 0.9375rem;
+  text-decoration: none;
+  line-height: 1.4;
+}
+
+.cart-product-title:hover {
+  color: #2563eb;
+}
+
+/* Quantity controls */
+.qty-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  overflow: hidden;
+  width: fit-content;
+  margin: 0 auto;
+}
+
+.qty-btn {
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc;
+  border: none;
+  font-size: 1rem;
+  cursor: pointer;
+  color: #334155;
+  transition: background 0.15s;
+  font-weight: 600;
+}
+
+.qty-btn:hover:not(:disabled) {
+  background: #e2e8f0;
+}
+
+.qty-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.qty-value {
+  width: 2.25rem;
+  text-align: center;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #1e293b;
+  border-left: 1px solid #e2e8f0;
+  border-right: 1px solid #e2e8f0;
+  line-height: 2rem;
+}
+
+/* Cells */
+.price-cell {
+  font-size: 0.9375rem;
+  color: #334155;
+  white-space: nowrap;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.remove-btn {
+  color: #94a3b8;
+  border-color: transparent;
+  padding: 0.25rem 0.5rem;
+}
+
+.remove-btn:hover {
+  color: #dc2626;
+  background: #fee2e2;
+  border-color: transparent;
+}
+
+/* Cart actions row */
+.cart-actions-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Summary card */
+.cart-summary {
+  position: sticky;
+  top: 5rem;
+}
+
+.summary-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 1.25rem;
+}
+
+.summary-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9375rem;
+  margin-bottom: 0.75rem;
+}
+
+.text-success {
+  color: #16a34a;
+  font-weight: 500;
+}
+
+.summary-divider {
+  border-top: 1px solid #e2e8f0;
+  margin: 1rem 0;
+}
+
+.summary-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.total-price {
+  font-size: 1.25rem;
+}
+
+.checkout-btn {
+  width: 100%;
+  justify-content: center;
+  padding: 0.75rem;
+}
+
+.w-full {
+  width: 100%;
+}
+
+.font-semibold {
+  font-weight: 600;
+}
+
+.mt-2 {
+  margin-top: 0.5rem;
+}
+
+.text-center {
+  text-align: center;
+}
+
+@media (max-width: 900px) {
+  .cart-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .cart-summary {
+    position: static;
+  }
+}
+
+@media (max-width: 640px) {
+  .cart-table {
+    font-size: 0.8125rem;
+  }
+
+  .cart-row td {
+    padding: 0.75rem 0.5rem;
+  }
+
+  .cart-product-info {
+    gap: 0.5rem;
+  }
+
+  .cart-product-image-placeholder {
+    display: none;
+  }
+}

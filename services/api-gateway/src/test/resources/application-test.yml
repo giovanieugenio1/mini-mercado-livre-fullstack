@@ -1,0 +1,65 @@
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # JwtDecoder é mockado no teste — URI não é usada
+          jwk-set-uri: http://localhost:9999/realms/test/certs
+
+  cloud:
+    gateway:
+      routes:
+        # URIs apontam para portas locais fictícias; o IT não exercita routing
+        - id: catalog-service
+          uri: http://localhost:28081
+          predicates:
+            - Path=/api/v1/products/**
+          filters:
+            - StripPrefix=2
+
+        - id: order-service
+          uri: http://localhost:28082
+          predicates:
+            - Path=/api/v1/orders/**
+          filters:
+            - StripPrefix=2
+
+        - id: payment-service
+          uri: http://localhost:28083
+          predicates:
+            - Path=/api/v1/payments/**
+          filters:
+            - StripPrefix=2
+
+        - id: inventory-service-stock
+          uri: http://localhost:28084
+          predicates:
+            - Path=/api/v1/inventory/**
+          filters:
+            - StripPrefix=2
+
+        - id: inventory-service-reservations
+          uri: http://localhost:28084
+          predicates:
+            - Path=/api/v1/reservations/**
+          filters:
+            - StripPrefix=2
+
+        - id: shipping-service
+          uri: http://localhost:28085
+          predicates:
+            - Path=/api/v1/shippings/**
+          filters:
+            - StripPrefix=2
+
+        - id: notification-service
+          uri: http://localhost:28086
+          predicates:
+            - Path=/api/v1/notifications/**
+          filters:
+            - StripPrefix=2
+
+logging:
+  level:
+    root: WARN
+    com.miniml.gateway: DEBUG

@@ -1,0 +1,86 @@
+<a routerLink="/products" class="back-link">&#8592; Voltar</a>
+
+@if (loading()) {
+  <div class="loading">Carregando produto...</div>
+} @else if (error()) {
+  <div class="error-msg">{{ error() }}</div>
+} @else if (product()) {
+  <div class="product-detail-layout">
+    <div class="product-image-section">
+      <div class="product-detail-img-wrapper">
+        <img
+          [src]="getImageUrl(product()!)"
+          [alt]="product()!.title"
+          class="product-detail-image"
+          (error)="onImgError($event)"
+        />
+        <div class="product-detail-img-fallback">
+          <span>&#128722;</span>
+          <p class="text-muted text-sm">Sem imagem disponivel</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="product-info-section">
+      <div class="product-detail-header">
+        <span class="category-tag-lg">{{ product()!.category }}</span>
+        @if (!product()!.active) {
+          <span class="badge badge-cancelled">Inativo</span>
+        }
+      </div>
+
+      <h1 class="product-detail-title">{{ product()!.title }}</h1>
+
+      <p class="product-detail-price price">{{ formatPrice(product()!.price) }}</p>
+
+      <div class="product-detail-stock">
+        @if (product()!.stock > 0) {
+          <span class="stock-available">&#10003; Em estoque: {{ product()!.stock }} unidade(s)</span>
+        } @else {
+          <span class="stock-unavailable">&#10007; Produto sem estoque</span>
+        }
+      </div>
+
+      @if (product()!.description) {
+        <div class="product-description">
+          <h3 class="description-title">Descricao</h3>
+          <p class="description-text">{{ product()!.description }}</p>
+        </div>
+      }
+
+      @if (product()!.stock > 0 && product()!.active) {
+        <div class="quantity-section">
+          <label class="quantity-label">Quantidade:</label>
+          <div class="quantity-controls">
+            <button class="qty-btn" (click)="decrement()" [disabled]="quantity() <= 1">-</button>
+            <span class="qty-value">{{ quantity() }}</span>
+            <button class="qty-btn" (click)="increment()" [disabled]="quantity() >= product()!.stock">+</button>
+          </div>
+        </div>
+
+        <div class="action-buttons">
+          <button
+            class="btn btn-lg w-full"
+            [class.btn-success]="added()"
+            [class.btn-primary]="!added()"
+            (click)="addToCart()"
+          >
+            @if (added()) {
+              Adicionado ao Carrinho &#10003;
+            } @else {
+              Adicionar ao Carrinho
+            }
+          </button>
+
+          @if (added()) {
+            <a routerLink="/cart" class="btn btn-outline btn-lg w-full">Ver Carrinho</a>
+          }
+        </div>
+      } @else if (!product()!.active) {
+        <div class="error-msg">Este produto nao esta disponivel no momento.</div>
+      } @else {
+        <div class="error-msg">Produto sem estoque no momento.</div>
+      }
+    </div>
+  </div>
+}

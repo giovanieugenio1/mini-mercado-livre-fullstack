@@ -1,0 +1,5 @@
+com\miniml\user\domain\UserRepositoryIT.class
+com\miniml\user\service\UserRegistrationServiceTest.class
+com\miniml\user\controller\UserControllerTest.class
+com\miniml\user\UserServiceApplicationTests.class
+com\miniml\user\validation\CpfValidatorTest.class

@@ -1,0 +1,84 @@
+# =============================================================
+# Mini Mercado Livre — Prometheus scrape configuration
+# Coleta métricas de todos os microserviços via /actuator/prometheus
+#
+# NOTA: serviços Spring Boot rodam no host (fora do Docker).
+#   Mac/Windows Docker Desktop: host.docker.internal resolve automaticamente.
+#   Linux: o extra_hosts no compose define host.docker.internal=host-gateway.
+# =============================================================
+
+global:
+  scrape_interval:     15s
+  evaluation_interval: 15s
+  external_labels:
+    environment: local
+    project: mini-mercado-livre
+
+alerting:
+  alertmanagers: []
+
+rule_files: []
+
+scrape_configs:
+
+  # Prometheus auto-monitoramento
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # ── Microserviços Spring Boot ────────────────────────────────
+  # Porta padrão por serviço (configurável no application.yml de cada um)
+
+  - job_name: catalog-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["host.docker.internal:8081"]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: catalog-service
+
+  - job_name: order-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["host.docker.internal:8082"]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: order-service
+
+  - job_name: payment-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["host.docker.internal:8083"]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: payment-service
+
+  - job_name: inventory-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["host.docker.internal:8084"]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: inventory-service
+
+  - job_name: shipping-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["host.docker.internal:8085"]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: shipping-service
+
+  - job_name: notification-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["host.docker.internal:8086"]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: notification-service

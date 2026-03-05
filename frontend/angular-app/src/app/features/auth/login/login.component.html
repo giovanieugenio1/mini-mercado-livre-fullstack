@@ -1,0 +1,57 @@
+<div class="auth-page">
+  <div class="auth-card card">
+    <div class="auth-header">
+      <h1 class="auth-title">Entrar</h1>
+      <p class="auth-subtitle">Acesse sua conta no Mini Mercado Livre</p>
+    </div>
+
+    <form class="auth-form" (ngSubmit)="onSubmit()" #loginForm="ngForm">
+      @if (error()) {
+        <div class="alert alert-error">{{ error() }}</div>
+      }
+
+      <div class="form-group">
+        <label class="form-label" for="username">E-mail ou usuário</label>
+        <input
+          id="username"
+          class="form-input"
+          type="text"
+          [(ngModel)]="username"
+          name="username"
+          autocomplete="username"
+          placeholder="seu@email.com"
+          [disabled]="loading()"
+          required
+        />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="password">Senha</label>
+        <input
+          id="password"
+          class="form-input"
+          type="password"
+          [(ngModel)]="password"
+          name="password"
+          autocomplete="current-password"
+          placeholder="••••••••"
+          [disabled]="loading()"
+          required
+        />
+      </div>
+
+      <button type="submit" class="btn btn-primary w-full" [disabled]="loading()">
+        @if (loading()) {
+          Entrando...
+        } @else {
+          Entrar
+        }
+      </button>
+    </form>
+
+    <p class="auth-footer">
+      Ainda não tem conta?
+      <a routerLink="/register" class="auth-link">Cadastre-se</a>
+    </p>
+  </div>
+</div>

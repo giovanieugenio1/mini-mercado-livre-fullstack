@@ -1,0 +1,104 @@
+<div class="page-header">
+  <h1>Produtos</h1>
+  <p class="text-muted">Encontre os melhores produtos do mercado</p>
+</div>
+
+<div class="search-bar">
+  <div class="search-input-group">
+    <input
+      type="text"
+      [(ngModel)]="searchQuery"
+      placeholder="Buscar produtos..."
+      class="search-input"
+      (keyup.enter)="onSearch()"
+    />
+    <button class="btn btn-primary" (click)="onSearch()">Buscar</button>
+  </div>
+  <select
+    [(ngModel)]="selectedCategory"
+    class="category-select"
+    (change)="onSearch()"
+  >
+    @for (cat of categories; track cat) {
+      <option [value]="cat">{{ categoryLabels[cat] }}</option>
+    }
+  </select>
+</div>
+
+@if (loading()) {
+  <div class="loading">Carregando produtos...</div>
+} @else if (error()) {
+  <div class="error-msg">{{ error() }}</div>
+} @else if (products().length === 0) {
+  <div class="empty-state">
+    <h3>Nenhum produto encontrado</h3>
+    <p>Tente buscar com outros termos ou categoria.</p>
+    <button class="btn btn-outline" (click)="searchQuery = ''; selectedCategory = ''; load()">
+      Limpar filtros
+    </button>
+  </div>
+} @else {
+  <div class="results-info text-muted text-sm mb-3">
+    {{ totalElements() }} produto(s) encontrado(s)
+  </div>
+
+  <div class="product-grid">
+    @for (product of products(); track product.id) {
+      <div class="product-card card">
+        <div class="product-img-wrapper">
+          <img
+            [src]="getImageUrl(product)"
+            [alt]="product.title"
+            class="product-image"
+            (error)="onImgError($event)"
+          />
+          <div class="product-img-fallback">&#128722;</div>
+        </div>
+        <div class="product-card-body">
+          <span class="category-tag">{{ product.category }}</span>
+          <h3 class="product-title">{{ product.title }}</h3>
+          <p class="product-price price">{{ formatPrice(product.price) }}</p>
+          <p class="product-stock text-sm" [class.out-of-stock]="product.stock === 0">
+            @if (product.stock > 0) {
+              Em estoque: {{ product.stock }}
+            } @else {
+              Sem estoque
+            }
+          </p>
+          <div class="product-actions">
+            <a [routerLink]="['/products', product.id]" class="btn btn-outline btn-sm">
+              Ver detalhes
+            </a>
+            <button
+              class="btn btn-sm"
+              [class.btn-success]="addedIds().has(product.id)"
+              [class.btn-primary]="!addedIds().has(product.id)"
+              [disabled]="product.stock === 0"
+              (click)="addToCart(product)"
+            >
+              @if (addedIds().has(product.id)) {
+                Adicionado &#10003;
+              } @else {
+                + Carrinho
+              }
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+
+  @if (totalPages() > 1) {
+    <div class="pagination">
+      <button class="btn btn-ghost btn-sm" [disabled]="currentPage() === 0" (click)="prevPage()">
+        Anterior
+      </button>
+      <span class="pagination-info text-sm text-muted">
+        Pagina {{ currentPage() + 1 }} de {{ totalPages() }} ({{ totalElements() }} produtos)
+      </span>
+      <button class="btn btn-ghost btn-sm" [disabled]="currentPage() >= totalPages() - 1" (click)="nextPage()">
+        Proxima
+      </button>
+    </div>
+  }
+}

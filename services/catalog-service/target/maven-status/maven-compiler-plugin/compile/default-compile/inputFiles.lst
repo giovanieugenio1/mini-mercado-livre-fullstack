@@ -1,0 +1,14 @@
+C:\Dev\projetos\mini-mercado-livre-fullstack\services\catalog-service\src\main\java\com\miniml\catalog\CatalogServiceApplication.java
+C:\Dev\projetos\mini-mercado-livre-fullstack\services\catalog-service\src\main\java\com\miniml\catalog\config\CacheConfig.java
+C:\Dev\projetos\mini-mercado-livre-fullstack\services\catalog-service\src\main\java\com\miniml\catalog\config\OpenApiConfig.java
+C:\Dev\projetos\mini-mercado-livre-fullstack\services\catalog-service\src\main\java\com\miniml\catalog\config\SecurityConfig.java
+C:\Dev\projetos\mini-mercado-livre-fullstack\services\catalog-service\src\main\java\com\miniml\catalog\controller\ProductController.java
+C:\Dev\projetos\mini-mercado-livre-fullstack\services\catalog-service\src\main\java\com\miniml\catalog\domain\Product.java
+C:\Dev\projetos\mini-mercado-livre-fullstack\services\catalog-service\src\main\java\com\miniml\catalog\domain\ProductRepository.java
+C:\Dev\projetos\mini-mercado-livre-fullstack\services\catalog-service\src\main\java\com\miniml\catalog\dto\CreateProductRequest.java
+C:\Dev\projetos\mini-mercado-livre-fullstack\services\catalog-service\src\main\java\com\miniml\catalog\dto\PageResponse.java
+C:\Dev\projetos\mini-mercado-livre-fullstack\services\catalog-service\src\main\java\com\miniml\catalog\dto\ProductResponse.java
+C:\Dev\projetos\mini-mercado-livre-fullstack\services\catalog-service\src\main\java\com\miniml\catalog\dto\UpdateProductRequest.java
+C:\Dev\projetos\mini-mercado-livre-fullstack\services\catalog-service\src\main\java\com\miniml\catalog\exception\GlobalExceptionHandler.java
+C:\Dev\projetos\mini-mercado-livre-fullstack\services\catalog-service\src\main\java\com\miniml\catalog\exception\ProductNotFoundException.java
+C:\Dev\projetos\mini-mercado-livre-fullstack\services\catalog-service\src\main\java\com\miniml\catalog\service\ProductService.java

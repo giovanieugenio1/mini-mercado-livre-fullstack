@@ -1,0 +1,16 @@
+C:\Dev\projetos\mini-mercado-livre-fullstack\services\user-service\src\main\java\com\miniml\user\config\SecurityConfig.java
+C:\Dev\projetos\mini-mercado-livre-fullstack\services\user-service\src\main\java\com\miniml\user\config\WebConfig.java
+C:\Dev\projetos\mini-mercado-livre-fullstack\services\user-service\src\main\java\com\miniml\user\controller\UserController.java
+C:\Dev\projetos\mini-mercado-livre-fullstack\services\user-service\src\main\java\com\miniml\user\domain\AddressData.java
+C:\Dev\projetos\mini-mercado-livre-fullstack\services\user-service\src\main\java\com\miniml\user\domain\User.java
+C:\Dev\projetos\mini-mercado-livre-fullstack\services\user-service\src\main\java\com\miniml\user\domain\UserCredential.java
+C:\Dev\projetos\mini-mercado-livre-fullstack\services\user-service\src\main\java\com\miniml\user\domain\UserCredentialRepository.java
+C:\Dev\projetos\mini-mercado-livre-fullstack\services\user-service\src\main\java\com\miniml\user\domain\UserRepository.java
+C:\Dev\projetos\mini-mercado-livre-fullstack\services\user-service\src\main\java\com\miniml\user\dto\AddressRequest.java
+C:\Dev\projetos\mini-mercado-livre-fullstack\services\user-service\src\main\java\com\miniml\user\dto\RegisterRequest.java
+C:\Dev\projetos\mini-mercado-livre-fullstack\services\user-service\src\main\java\com\miniml\user\dto\RegisterResponse.java
+C:\Dev\projetos\mini-mercado-livre-fullstack\services\user-service\src\main\java\com\miniml\user\exception\GlobalExceptionHandler.java
+C:\Dev\projetos\mini-mercado-livre-fullstack\services\user-service\src\main\java\com\miniml\user\service\UserRegistrationService.java
+C:\Dev\projetos\mini-mercado-livre-fullstack\services\user-service\src\main\java\com\miniml\user\UserServiceApplication.java
+C:\Dev\projetos\mini-mercado-livre-fullstack\services\user-service\src\main\java\com\miniml\user\validation\Cpf.java
+C:\Dev\projetos\mini-mercado-livre-fullstack\services\user-service\src\main\java\com\miniml\user\validation\CpfValidator.java

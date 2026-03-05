@@ -1,0 +1,63 @@
+<div class="page-header">
+  <h1>Meus Pedidos</h1>
+  <p class="text-muted">Acompanhe o status dos seus pedidos</p>
+</div>
+
+@if (loading()) {
+  <div class="loading">Carregando pedidos...</div>
+} @else if (error()) {
+  <div class="error-msg">{{ error() }}</div>
+} @else if (orders().length === 0) {
+  <div class="empty-state">
+    <h3>Nenhum pedido encontrado</h3>
+    <p>Voce ainda nao realizou nenhum pedido.</p>
+    <a routerLink="/products" class="btn btn-primary">
+      Explorar Produtos
+    </a>
+  </div>
+} @else {
+  <div class="card">
+    <table class="orders-table">
+      <thead>
+        <tr>
+          <th>Pedido</th>
+          <th>Data</th>
+          <th>Status</th>
+          <th class="text-right">Total</th>
+          <th class="text-center">Itens</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (order of orders(); track order.id) {
+          <tr class="order-row">
+            <td>
+              <span class="order-id">
+                #{{ order.id.substring(0, 8).toUpperCase() }}
+              </span>
+            </td>
+            <td>
+              <span class="text-sm">{{ formatDate(order.createdAt) }}</span>
+            </td>
+            <td>
+              <span [class]="statusClass(order.status)">
+                {{ statusLabel(order.status) }}
+              </span>
+            </td>
+            <td class="text-right">
+              <span class="price font-semibold">{{ formatPrice(order.totalAmount) }}</span>
+            </td>
+            <td class="text-center">
+              <span class="text-sm text-muted">{{ order.items.length }} item(s)</span>
+            </td>
+            <td class="text-right">
+              <a [routerLink]="['/orders', order.id]" class="btn btn-outline btn-sm">
+                Ver Detalhes
+              </a>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

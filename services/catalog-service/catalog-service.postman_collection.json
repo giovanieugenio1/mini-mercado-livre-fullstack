@@ -1,0 +1,733 @@
+{
+  "info": {
+    "name": "Mini Mercado Livre — catalog-service",
+    "_postman_id": "d4e5f6a7-b8c9-0123-def0-1234567890ab",
+    "description": "API de catálogo de produtos do Mini Mercado Livre.\nBase URL: {{base_url}} (default: http://localhost:8081)\n\nFuncionalidades:\n- Listar produtos ativos com paginação\n- Filtrar por categoria e/ou texto no título\n- Buscar produto por ID\n- Criar, atualizar e excluir produto (ROLE_ADMIN)\n\nAutenticação:\n- Endpoints de escrita exigem ROLE_ADMIN → use {{admin_token}}\n- Obtenha via Keycloak: admin1/admin1pass\n\nO script de teste em 'Listar Produtos' salva o primeiro produto\nna variável de coleção {{primeiro_produto_id}} para reutilizar\nnos testes seguintes.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8081",
+      "type": "string"
+    },
+    {
+      "key": "primeiro_produto_id",
+      "value": "",
+      "type": "string",
+      "description": "Preenchido automaticamente pelo script de 'Listar Produtos'"
+    },
+    {
+      "key": "admin_token",
+      "value": "",
+      "type": "string",
+      "description": "Access token JWT de admin1/admin1pass (ROLE_ADMIN) obtido do Keycloak"
+    },
+    {
+      "key": "produto_criado_id",
+      "value": "",
+      "type": "string",
+      "description": "Preenchido automaticamente pelo script de 'Criar Produto (Admin)'"
+    }
+  ],
+  "item": [
+    {
+      "name": "Produtos",
+      "item": [
+
+        {
+          "name": "01 — Listar todos (sem filtro)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Content-Type é JSON', () => {",
+                  "    pm.response.to.have.header('Content-Type');",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json');",
+                  "});",
+                  "",
+                  "pm.test('Resposta tem campos de paginação', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('content');",
+                  "    pm.expect(body).to.have.property('page');",
+                  "    pm.expect(body).to.have.property('size');",
+                  "    pm.expect(body).to.have.property('totalElements');",
+                  "    pm.expect(body).to.have.property('totalPages');",
+                  "    pm.expect(body).to.have.property('last');",
+                  "});",
+                  "",
+                  "pm.test('content não está vazio (seed OK)', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.content.length).to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test('Produto tem campos obrigatórios', () => {",
+                  "    const produto = pm.response.json().content[0];",
+                  "    pm.expect(produto).to.have.property('id');",
+                  "    pm.expect(produto).to.have.property('title');",
+                  "    pm.expect(produto).to.have.property('price');",
+                  "    pm.expect(produto).to.have.property('stock');",
+                  "    pm.expect(produto).to.have.property('category');",
+                  "});",
+                  "",
+                  "// Salva o ID do primeiro produto para uso nas próximas requisições",
+                  "const firstId = pm.response.json().content[0]?.id;",
+                  "if (firstId) {",
+                  "    pm.collectionVariables.set('primeiro_produto_id', firstId);",
+                  "    console.log('ID salvo:', firstId);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/products",
+              "host": ["{{base_url}}"],
+              "path": ["products"]
+            }
+          }
+        },
+
+        {
+          "name": "02 — Listar com paginação (page=0, size=3)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test('Respeita page e size', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.page).to.equal(0);",
+                  "    pm.expect(body.size).to.equal(3);",
+                  "    pm.expect(body.content.length).to.be.at.most(3);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/products?page=0&size=3",
+              "host": ["{{base_url}}"],
+              "path": ["products"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "3" }
+              ]
+            }
+          }
+        },
+
+        {
+          "name": "03 — Filtrar por categoria (ELECTRONICS)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test('Todos os itens são ELECTRONICS', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.content.length).to.be.above(0);",
+                  "    body.content.forEach(p => {",
+                  "        pm.expect(p.category).to.equal('ELECTRONICS');",
+                  "    });",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/products?category=ELECTRONICS",
+              "host": ["{{base_url}}"],
+              "path": ["products"],
+              "query": [
+                { "key": "category", "value": "ELECTRONICS" }
+              ]
+            }
+          }
+        },
+
+        {
+          "name": "04 — Filtrar por categoria (BOOKS)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test('Retorna livros', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.content.length).to.be.above(0);",
+                  "    body.content.forEach(p => {",
+                  "        pm.expect(p.category).to.equal('BOOKS');",
+                  "    });",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/products?category=BOOKS",
+              "host": ["{{base_url}}"],
+              "path": ["products"],
+              "query": [
+                { "key": "category", "value": "BOOKS" }
+              ]
+            }
+          }
+        },
+
+        {
+          "name": "05 — Buscar por título (query=iphone)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test('Título contém iphone (case-insensitive)', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.content.length).to.be.above(0);",
+                  "    body.content.forEach(p => {",
+                  "        pm.expect(p.title.toLowerCase()).to.include('iphone');",
+                  "    });",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/products?query=iphone",
+              "host": ["{{base_url}}"],
+              "path": ["products"],
+              "query": [
+                { "key": "query", "value": "iphone" }
+              ]
+            }
+          }
+        },
+
+        {
+          "name": "06 — Buscar por título + categoria combinados",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test('Aplica ambos os filtros', () => {",
+                  "    const body = pm.response.json();",
+                  "    body.content.forEach(p => {",
+                  "        pm.expect(p.category).to.equal('BOOKS');",
+                  "        pm.expect(p.title.toLowerCase()).to.include('clean');",
+                  "    });",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/products?query=clean&category=BOOKS",
+              "host": ["{{base_url}}"],
+              "path": ["products"],
+              "query": [
+                { "key": "query", "value": "clean" },
+                { "key": "category", "value": "BOOKS" }
+              ]
+            }
+          }
+        },
+
+        {
+          "name": "07 — Categoria inexistente → lista vazia",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test('content vazio para categoria inexistente', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.content).to.be.an('array').that.is.empty;",
+                  "    pm.expect(body.totalElements).to.equal(0);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/products?category=CATEGORIA_INEXISTENTE",
+              "host": ["{{base_url}}"],
+              "path": ["products"],
+              "query": [
+                { "key": "category", "value": "CATEGORIA_INEXISTENTE" }
+              ]
+            }
+          }
+        },
+
+        {
+          "name": "08 — Detalhe por ID (usa variável do req 01)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const id = pm.collectionVariables.get('primeiro_produto_id');",
+                  "if (!id) {",
+                  "    console.warn('Variável primeiro_produto_id não definida. Execute o request 01 primeiro.');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test('Retorna o produto correto', () => {",
+                  "    const body = pm.response.json();",
+                  "    const expectedId = pm.collectionVariables.get('primeiro_produto_id');",
+                  "    pm.expect(body.id).to.equal(expectedId);",
+                  "    pm.expect(body).to.have.property('title');",
+                  "    pm.expect(body).to.have.property('price');",
+                  "    pm.expect(body).to.have.property('stock');",
+                  "    pm.expect(body).to.have.property('category');",
+                  "    pm.expect(body).to.have.property('createdAt');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/products/{{primeiro_produto_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["products", "{{primeiro_produto_id}}"]
+            }
+          }
+        },
+
+        {
+          "name": "09 — ID inexistente → 404 ProblemDetail",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));",
+                  "",
+                  "pm.test('Retorna RFC 7807 ProblemDetail', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('title');",
+                  "    pm.expect(body).to.have.property('detail');",
+                  "    pm.expect(body).to.have.property('status');",
+                  "    pm.expect(body.status).to.equal(404);",
+                  "    pm.expect(body.title).to.equal('Produto não encontrado');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/products/00000000-0000-0000-0000-000000000000",
+              "host": ["{{base_url}}"],
+              "path": ["products", "00000000-0000-0000-0000-000000000000"]
+            }
+          }
+        },
+
+        {
+          "name": "10 — UUID malformado → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/products/nao-e-um-uuid-valido",
+              "host": ["{{base_url}}"],
+              "path": ["products", "nao-e-um-uuid-valido"]
+            }
+          }
+        },
+
+        {
+          "name": "11 — Criar produto (ROLE_ADMIN) → 201 Created",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
+                  "",
+                  "pm.test('Header Location presente', () => {",
+                  "    pm.expect(pm.response.headers.get('Location')).to.include('/products/');",
+                  "});",
+                  "",
+                  "pm.test('Produto criado com campos corretos', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.title).to.equal('Novo Produto Test');",
+                  "    pm.expect(body.price).to.equal(299.99);",
+                  "    pm.expect(body.active).to.be.true;",
+                  "    pm.collectionVariables.set('produto_criado_id', body.id);",
+                  "    console.log('Produto criado:', body.id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Novo Produto Test\",\n  \"description\": \"Produto criado via Postman para teste\",\n  \"price\": 299.99,\n  \"stock\": 100,\n  \"category\": \"ELECTRONICS\",\n  \"imageUrl\": \"https://example.com/produto.jpg\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/products",
+              "host": ["{{base_url}}"],
+              "path": ["products"]
+            }
+          }
+        },
+
+        {
+          "name": "12 — Criar produto sem ROLE_ADMIN → 403 Forbidden",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 403 Forbidden', () => pm.response.to.have.status(403));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"X\",\n  \"price\": 1.00,\n  \"stock\": 1,\n  \"category\": \"ELECTRONICS\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/products",
+              "host": ["{{base_url}}"],
+              "path": ["products"]
+            }
+          }
+        },
+
+        {
+          "name": "13 — Criar produto payload inválido → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400 Bad Request', () => pm.response.to.have.status(400));",
+                  "",
+                  "pm.test('Retorna ProblemDetail', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.status).to.equal(400);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"\",\n  \"price\": -1,\n  \"stock\": -5,\n  \"category\": \"\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/products",
+              "host": ["{{base_url}}"],
+              "path": ["products"]
+            }
+          }
+        },
+
+        {
+          "name": "14 — Atualizar produto (ROLE_ADMIN) → 200 OK",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const id = pm.collectionVariables.get('produto_criado_id');",
+                  "if (!id) { console.warn('Execute o request 11 primeiro para criar o produto.'); }"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test('Produto atualizado corretamente', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.title).to.equal('Produto Atualizado');",
+                  "    pm.expect(body.price).to.equal(399.99);",
+                  "    pm.expect(body.stock).to.equal(50);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Produto Atualizado\",\n  \"description\": \"Descrição atualizada\",\n  \"price\": 399.99,\n  \"stock\": 50,\n  \"category\": \"ELECTRONICS\",\n  \"imageUrl\": \"https://example.com/updated.jpg\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/products/{{produto_criado_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["products", "{{produto_criado_id}}"]
+            }
+          }
+        },
+
+        {
+          "name": "15 — Deletar produto (ROLE_ADMIN) → 204 No Content",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const id = pm.collectionVariables.get('produto_criado_id');",
+                  "if (!id) { console.warn('Execute o request 11 primeiro para criar o produto.'); }"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 204 No Content', () => pm.response.to.have.status(204));",
+                  "",
+                  "pm.test('Body vazio', () => {",
+                  "    pm.expect(pm.response.text()).to.be.empty;",
+                  "});",
+                  "",
+                  "// Limpa a variável após delete",
+                  "pm.collectionVariables.set('produto_criado_id', '');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/products/{{produto_criado_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["products", "{{produto_criado_id}}"]
+            }
+          }
+        },
+
+        {
+          "name": "16 — Deletar produto inexistente (ROLE_ADMIN) → 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 404 Not Found', () => pm.response.to.have.status(404));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/products/00000000-0000-0000-0000-000000000000",
+              "host": ["{{base_url}}"],
+              "path": ["products", "00000000-0000-0000-0000-000000000000"]
+            }
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "Actuator",
+      "item": [
+
+        {
+          "name": "Health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Status UP', () => {",
+                  "    pm.expect(pm.response.json().status).to.equal('UP');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/actuator/health",
+              "host": ["{{base_url}}"],
+              "path": ["actuator", "health"]
+            }
+          }
+        },
+
+        {
+          "name": "Prometheus metrics",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Contém métricas JVM', () => {",
+                  "    pm.expect(pm.response.text()).to.include('jvm_');",
+                  "});",
+                  "pm.test('Contém métricas HTTP', () => {",
+                  "    pm.expect(pm.response.text()).to.include('http_server_requests');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/actuator/prometheus",
+              "host": ["{{base_url}}"],
+              "path": ["actuator", "prometheus"]
+            }
+          }
+        }
+
+      ]
+    }
+  ]
+}

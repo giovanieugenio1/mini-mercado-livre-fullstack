@@ -1,0 +1,16 @@
+com\miniml\user\domain\AddressData.class
+com\miniml\user\service\UserRegistrationService.class
+com\miniml\user\dto\RegisterRequest.class
+com\miniml\user\domain\UserCredentialRepository.class
+com\miniml\user\domain\UserRepository.class
+com\miniml\user\dto\AddressRequest.class
+com\miniml\user\exception\GlobalExceptionHandler.class
+com\miniml\user\UserServiceApplication.class
+com\miniml\user\domain\UserCredential.class
+com\miniml\user\config\SecurityConfig.class
+com\miniml\user\config\WebConfig.class
+com\miniml\user\dto\RegisterResponse.class
+com\miniml\user\validation\CpfValidator.class
+com\miniml\user\controller\UserController.class
+com\miniml\user\domain\User.class
+com\miniml\user\validation\Cpf.class

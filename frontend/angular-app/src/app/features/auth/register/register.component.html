@@ -1,0 +1,133 @@
+<div class="auth-page">
+  <div class="auth-card card">
+    <div class="auth-header">
+      <h1 class="auth-title">Cadastre-se</h1>
+      <p class="auth-subtitle">Crie sua conta no Mini Mercado Livre</p>
+    </div>
+
+    <form class="auth-form" (ngSubmit)="onSubmit()">
+      @if (error()) {
+        <div class="alert alert-error">{{ error() }}</div>
+      }
+
+      <!-- ── Dados pessoais ──────────────────────────────── -->
+      <div class="section-label">Dados pessoais</div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="firstName">Nome <span class="required">*</span></label>
+          <input id="firstName" class="form-input" type="text" [(ngModel)]="firstName"
+                 name="firstName" placeholder="João" [disabled]="loading()" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="lastName">Sobrenome <span class="required">*</span></label>
+          <input id="lastName" class="form-input" type="text" [(ngModel)]="lastName"
+                 name="lastName" placeholder="Silva" [disabled]="loading()" required />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="email">E-mail <span class="required">*</span></label>
+        <input id="email" class="form-input" type="email" [(ngModel)]="email"
+               name="email" placeholder="seu@email.com" autocomplete="email"
+               [disabled]="loading()" required />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="cpf">CPF <span class="required">*</span></label>
+        <input id="cpf" class="form-input" [class.input-error]="cpfError()"
+               type="text" [value]="cpf" (input)="onCpfInput($event)"
+               name="cpf" placeholder="000.000.000-00" inputmode="numeric"
+               maxlength="14" [disabled]="loading()" required />
+        @if (cpfError()) {
+          <span class="field-error">{{ cpfError() }}</span>
+        }
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="password">Senha <span class="required">*</span></label>
+          <input id="password" class="form-input" type="password" [(ngModel)]="password"
+                 name="password" placeholder="Mínimo 8 caracteres" autocomplete="new-password"
+                 (ngModelChange)="onPasswordChange()" [disabled]="loading()" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="confirmPassword">Confirmar senha <span class="required">*</span></label>
+          <input id="confirmPassword" class="form-input" [class.input-error]="passwordError()"
+                 type="password" [(ngModel)]="confirmPassword" name="confirmPassword"
+                 placeholder="Repita a senha" autocomplete="new-password"
+                 (ngModelChange)="onPasswordChange()" [disabled]="loading()" required />
+          @if (passwordError()) {
+            <span class="field-error">{{ passwordError() }}</span>
+          }
+        </div>
+      </div>
+
+      <!-- ── Endereço (opcional) ─────────────────────────── -->
+      <div class="section-label">
+        Endereço <span class="optional">(opcional)</span>
+      </div>
+
+      <div class="form-row form-row-3">
+        <div class="form-group col-2">
+          <label class="form-label" for="cep">CEP</label>
+          <input id="cep" class="form-input" type="text" [value]="cep"
+                 (input)="onCepInput($event)" name="cep"
+                 placeholder="00000-000" inputmode="numeric" maxlength="9"
+                 [disabled]="loading()" />
+        </div>
+        <div class="form-group col-4">
+          <label class="form-label" for="logradouro">Logradouro</label>
+          <input id="logradouro" class="form-input" type="text" [(ngModel)]="logradouro"
+                 name="logradouro" placeholder="Rua, Av., Alameda…" [disabled]="loading()" />
+        </div>
+      </div>
+
+      <div class="form-row form-row-3">
+        <div class="form-group col-1">
+          <label class="form-label" for="numero">Número</label>
+          <input id="numero" class="form-input" type="text" [(ngModel)]="numero"
+                 name="numero" placeholder="123" [disabled]="loading()" />
+        </div>
+        <div class="form-group col-3">
+          <label class="form-label" for="complemento">Complemento</label>
+          <input id="complemento" class="form-input" type="text" [(ngModel)]="complemento"
+                 name="complemento" placeholder="Apto, Bloco…" [disabled]="loading()" />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="bairro">Bairro</label>
+          <input id="bairro" class="form-input" type="text" [(ngModel)]="bairro"
+                 name="bairro" placeholder="Centro" [disabled]="loading()" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="cidade">Cidade</label>
+          <input id="cidade" class="form-input" type="text" [(ngModel)]="cidade"
+                 name="cidade" placeholder="São Paulo" [disabled]="loading()" />
+        </div>
+      </div>
+
+      <div class="form-group form-group-sm">
+        <label class="form-label" for="estado">Estado</label>
+        <select id="estado" class="form-input form-select" [(ngModel)]="estado"
+                name="estado" [disabled]="loading()">
+          <option value="">Selecione…</option>
+          @for (uf of ufs; track uf) {
+            <option [value]="uf">{{ uf }}</option>
+          }
+        </select>
+      </div>
+
+      <!-- ── Submit ──────────────────────────────────────── -->
+      <button type="submit" class="btn btn-primary w-full" [disabled]="loading()">
+        @if (loading()) { Cadastrando... } @else { Criar conta }
+      </button>
+    </form>
+
+    <p class="auth-footer">
+      Já tem uma conta? <a routerLink="/login" class="auth-link">Entrar</a>
+    </p>
+  </div>
+</div>

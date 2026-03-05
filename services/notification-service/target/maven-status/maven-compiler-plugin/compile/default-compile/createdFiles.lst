@@ -1,0 +1,14 @@
+com\miniml\notification\controller\NotificationController.class
+com\miniml\notification\domain\ProcessedEventRepository.class
+com\miniml\notification\messaging\DomainEventConsumer$BodyBuilder.class
+com\miniml\notification\NotificationServiceApplication.class
+com\miniml\notification\exception\GlobalExceptionHandler.class
+com\miniml\notification\domain\NotificationRepository.class
+com\miniml\notification\domain\Notification.class
+com\miniml\notification\dto\NotificationResponse.class
+com\miniml\notification\dto\PageResponse.class
+com\miniml\notification\service\NotificationService.class
+com\miniml\notification\config\OpenApiConfig.class
+com\miniml\notification\domain\ProcessedEvent.class
+com\miniml\notification\config\SecurityConfig.class
+com\miniml\notification\messaging\DomainEventConsumer.class

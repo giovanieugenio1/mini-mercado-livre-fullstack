@@ -1,0 +1,656 @@
+{
+  "info": {
+    "name": "Mini Mercado Livre — payment-service",
+    "_postman_id": "f7a8b9c0-d1e2-3456-fa12-345678901bcd",
+    "description": "API de pagamentos do Mini Mercado Livre.\nBase URL: {{base_url}} (default: http://localhost:8083)\n\nAutenticação: Bearer JWT no header Authorization.\nUse a variável {{token}} com o access_token obtido do Keycloak.\n\n⚠️ Pagamentos NÃO são criados via API — são gerados automaticamente pelo\nconsumer Kafka ao receber order.created.v1 do order-service.\n\nFluxo para testar o ciclo completo:\n1. Suba o order-service (porta 8082) e crie um pedido\n2. O payment-service consome o evento Kafka e processa o pagamento\n3. Use esta collection para consultar o resultado\n\nRegra de aprovação mock:\n  • amount ≤ R$ 50.000,00 → AUTHORIZED (publica payment.authorized.v1)\n  • amount >  R$ 50.000,00 → FAILED    (publica payment.failed.v1)\n\nFluxo sugerido:\n1. Pre-request script auto-obtém token do Keycloak\n2. Consultar por orderId (01) — preenche {{ultimo_payment_id}} e {{ultimo_order_id}}\n3. Consultar por paymentId (02)\n4. Listar todos (05), por customer (06), por status (07)\n5. Testar erros 401/404 (03, 04, 08)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8083",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string",
+      "description": "Access token JWT. Preenchido automaticamente pelo Pre-request Script da collection."
+    },
+    {
+      "key": "ultimo_payment_id",
+      "value": "",
+      "type": "string",
+      "description": "Preenchido automaticamente ao consultar /payments/order/{orderId}"
+    },
+    {
+      "key": "ultimo_order_id",
+      "value": "",
+      "type": "string",
+      "description": "Cole aqui o UUID de um pedido criado no order-service para testar o fluxo"
+    },
+    {
+      "key": "ultimo_customer_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Auto-renova o token JWT antes de cada request",
+          "const tokenUrl = 'http://localhost:8080/realms/mini-mercado-livre/protocol/openid-connect/token';",
+          "const currentToken = pm.collectionVariables.get('token');",
+          "",
+          "// Só busca novo token se não houver um definido",
+          "if (!currentToken) {",
+          "    pm.sendRequest({",
+          "        url: tokenUrl,",
+          "        method: 'POST',",
+          "        header: { 'Content-Type': 'application/x-www-form-urlencoded' },",
+          "        body: {",
+          "            mode: 'urlencoded',",
+          "            urlencoded: [",
+          "                { key: 'grant_type', value: 'password' },",
+          "                { key: 'client_id',  value: 'mini-ml-frontend' },",
+          "                { key: 'username',   value: 'user1' },",
+          "                { key: 'password',   value: 'user1pass' }",
+          "            ]",
+          "        }",
+          "    }, (err, res) => {",
+          "        if (!err && res.json().access_token) {",
+          "            pm.collectionVariables.set('token', res.json().access_token);",
+          "        }",
+          "    });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Pagamentos",
+      "item": [
+
+        {
+          "name": "01 — Buscar pagamento por orderId (200)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const oid = pm.collectionVariables.get('ultimo_order_id');",
+                  "if (!oid) {",
+                  "    console.warn('Variável ultimo_order_id não definida.');",
+                  "    console.warn('Cole o UUID de um pedido criado no order-service.');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Retorna campos obrigatórios', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('id');",
+                  "    pm.expect(body).to.have.property('orderId');",
+                  "    pm.expect(body).to.have.property('customerId');",
+                  "    pm.expect(body).to.have.property('amount');",
+                  "    pm.expect(body).to.have.property('currency');",
+                  "    pm.expect(body).to.have.property('status');",
+                  "    pm.expect(body).to.have.property('paymentMethod');",
+                  "    pm.expect(body).to.have.property('createdAt');",
+                  "});",
+                  "",
+                  "pm.test('currency é BRL', () => {",
+                  "    pm.expect(pm.response.json().currency).to.equal('BRL');",
+                  "});",
+                  "",
+                  "pm.test('status é AUTHORIZED ou FAILED', () => {",
+                  "    const status = pm.response.json().status;",
+                  "    pm.expect(['AUTHORIZED', 'FAILED']).to.include(status);",
+                  "});",
+                  "",
+                  "pm.test('paymentMethod é CREDIT_CARD (mock)', () => {",
+                  "    pm.expect(pm.response.json().paymentMethod).to.equal('CREDIT_CARD');",
+                  "});",
+                  "",
+                  "// Salva IDs para requests seguintes",
+                  "const body = pm.response.json();",
+                  "if (body.id) {",
+                  "    pm.collectionVariables.set('ultimo_payment_id', body.id);",
+                  "    console.log('Payment ID:', body.id, '| Status:', body.status);",
+                  "}",
+                  "if (body.customerId) {",
+                  "    pm.collectionVariables.set('ultimo_customer_id', body.customerId);",
+                  "}",
+                  "if (body.orderId) {",
+                  "    pm.collectionVariables.set('ultimo_order_id', body.orderId);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments/order/{{ultimo_order_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "order", "{{ultimo_order_id}}"]
+            },
+            "description": "Busca o pagamento vinculado a um pedido.\nPreencha a variável 'ultimo_order_id' com o UUID de um pedido do order-service."
+          }
+        },
+
+        {
+          "name": "02 — Buscar pagamento por paymentId (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('ID corresponde ao solicitado', () => {",
+                  "    const body = pm.response.json();",
+                  "    const expectedId = pm.collectionVariables.get('ultimo_payment_id');",
+                  "    pm.expect(body.id).to.equal(expectedId);",
+                  "    pm.expect(body).to.have.property('orderId');",
+                  "    pm.expect(body).to.have.property('amount');",
+                  "    pm.expect(body.amount).to.be.above(0);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments/{{ultimo_payment_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "{{ultimo_payment_id}}"]
+            },
+            "description": "Busca pelo ID do próprio pagamento (preenchido automaticamente pelo request 01)."
+          }
+        },
+
+        {
+          "name": "03 — Buscar orderId inexistente (404 + ProblemDetail)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 404 Not Found', () => {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test('Retorna RFC 7807 ProblemDetail', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('title');",
+                  "    pm.expect(body).to.have.property('detail');",
+                  "    pm.expect(body).to.have.property('status');",
+                  "    pm.expect(body.status).to.equal(404);",
+                  "    pm.expect(body.title).to.equal('Pagamento não encontrado');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments/order/00000000-0000-0000-0000-000000000000",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "order", "00000000-0000-0000-0000-000000000000"]
+            }
+          }
+        },
+
+        {
+          "name": "04 — Buscar paymentId inexistente (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 404 Not Found', () => {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test('ProblemDetail com título correto', () => {",
+                  "    pm.expect(pm.response.json().title).to.equal('Pagamento não encontrado');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments/00000000-0000-0000-0000-000000000000",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "00000000-0000-0000-0000-000000000000"]
+            }
+          }
+        },
+
+        {
+          "name": "05 — Sem autenticação (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 401 Unauthorized', () => {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments/00000000-0000-0000-0000-000000000000",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "00000000-0000-0000-0000-000000000000"]
+            }
+          }
+        },
+
+        {
+          "name": "06 — UUID malformado (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400 Bad Request', () => {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('ProblemDetail com título de parâmetro inválido', () => {",
+                  "    pm.expect(pm.response.json().title).to.equal('Parâmetro inválido');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments/nao-e-um-uuid",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "nao-e-um-uuid"]
+            }
+          }
+        },
+
+        {
+          "name": "07 — Listar todos os pagamentos (paginação default)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Resposta tem estrutura de paginação', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('content');",
+                  "    pm.expect(body).to.have.property('page');",
+                  "    pm.expect(body).to.have.property('size');",
+                  "    pm.expect(body).to.have.property('totalElements');",
+                  "    pm.expect(body).to.have.property('totalPages');",
+                  "    pm.expect(body).to.have.property('last');",
+                  "    pm.expect(body.content).to.be.an('array');",
+                  "    pm.expect(body.page).to.equal(0);",
+                  "});",
+                  "",
+                  "pm.test('Cada item tem amount, status e orderId', () => {",
+                  "    const items = pm.response.json().content;",
+                  "    items.forEach(p => {",
+                  "        pm.expect(p).to.have.property('id');",
+                  "        pm.expect(p).to.have.property('orderId');",
+                  "        pm.expect(p).to.have.property('amount');",
+                  "        pm.expect(p).to.have.property('status');",
+                  "    });",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments",
+              "host": ["{{base_url}}"],
+              "path": ["payments"]
+            }
+          }
+        },
+
+        {
+          "name": "08 — Listar com page=0&size=5",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Respeita page e size', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.page).to.equal(0);",
+                  "    pm.expect(body.size).to.equal(5);",
+                  "    pm.expect(body.content.length).to.be.at.most(5);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments?page=0&size=5",
+              "host": ["{{base_url}}"],
+              "path": ["payments"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "5" }
+              ]
+            }
+          }
+        },
+
+        {
+          "name": "09 — Filtrar por customerId",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "if (!pm.collectionVariables.get('ultimo_customer_id')) {",
+                  "    console.warn('ultimo_customer_id não definido. Execute o request 01 primeiro.');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Todos os pagamentos pertencem ao customerId', () => {",
+                  "    const body = pm.response.json();",
+                  "    const expectedCid = pm.collectionVariables.get('ultimo_customer_id');",
+                  "    body.content.forEach(p => {",
+                  "        pm.expect(p.customerId).to.equal(expectedCid);",
+                  "    });",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments?customerId={{ultimo_customer_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["payments"],
+              "query": [
+                { "key": "customerId", "value": "{{ultimo_customer_id}}" }
+              ]
+            }
+          }
+        },
+
+        {
+          "name": "10 — Filtrar por status=AUTHORIZED",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Todos os pagamentos têm status AUTHORIZED', () => {",
+                  "    pm.response.json().content.forEach(p => {",
+                  "        pm.expect(p.status).to.equal('AUTHORIZED');",
+                  "    });",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments?status=AUTHORIZED",
+              "host": ["{{base_url}}"],
+              "path": ["payments"],
+              "query": [
+                { "key": "status", "value": "AUTHORIZED" }
+              ]
+            }
+          }
+        },
+
+        {
+          "name": "11 — Filtrar por status=FAILED",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Todos os pagamentos têm status FAILED', () => {",
+                  "    pm.response.json().content.forEach(p => {",
+                  "        pm.expect(p.status).to.equal('FAILED');",
+                  "    });",
+                  "});",
+                  "",
+                  "pm.test('Pagamentos FAILED têm failureReason', () => {",
+                  "    pm.response.json().content.forEach(p => {",
+                  "        pm.expect(p.failureReason).to.not.be.null;",
+                  "        pm.expect(p.failureReason).to.not.be.empty;",
+                  "    });",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments?status=FAILED",
+              "host": ["{{base_url}}"],
+              "path": ["payments"],
+              "query": [
+                { "key": "status", "value": "FAILED" }
+              ]
+            }
+          }
+        },
+
+        {
+          "name": "12 — Status inválido (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400 Bad Request', () => {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments?status=INVALIDO",
+              "host": ["{{base_url}}"],
+              "path": ["payments"],
+              "query": [
+                { "key": "status", "value": "INVALIDO" }
+              ]
+            }
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "Actuator",
+      "item": [
+
+        {
+          "name": "Health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Status UP', () => {",
+                  "    pm.expect(pm.response.json().status).to.equal('UP');",
+                  "});",
+                  "pm.test('DB UP', () => {",
+                  "    const components = pm.response.json().components;",
+                  "    pm.expect(components).to.have.property('db');",
+                  "    pm.expect(components.db.status).to.equal('UP');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/actuator/health",
+              "host": ["{{base_url}}"],
+              "path": ["actuator", "health"]
+            }
+          }
+        },
+
+        {
+          "name": "Prometheus metrics",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Contém métricas JVM', () => {",
+                  "    pm.expect(pm.response.text()).to.include('jvm_');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/actuator/prometheus",
+              "host": ["{{base_url}}"],
+              "path": ["actuator", "prometheus"]
+            }
+          }
+        }
+
+      ]
+    }
+  ]
+}

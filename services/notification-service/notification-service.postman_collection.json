@@ -1,0 +1,188 @@
+{
+  "info": {
+    "name": "notification-service",
+    "description": "Mini Mercado Livre — Notification Service API (porta 8086)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const tokenUrl = 'http://localhost:8080/realms/mini-mercado-livre/protocol/openid-connect/token';",
+          "const expiresAt = pm.collectionVariables.get('token_expires_at');",
+          "const now = Date.now();",
+          "if (!expiresAt || now >= parseInt(expiresAt)) {",
+          "    pm.sendRequest({",
+          "        url: tokenUrl,",
+          "        method: 'POST',",
+          "        header: { 'Content-Type': 'application/x-www-form-urlencoded' },",
+          "        body: {",
+          "            mode: 'urlencoded',",
+          "            urlencoded: [",
+          "                { key: 'grant_type', value: 'password' },",
+          "                { key: 'client_id',  value: 'mini-ml-frontend' },",
+          "                { key: 'username',   value: 'user1' },",
+          "                { key: 'password',   value: 'user1pass' }",
+          "            ]",
+          "        }",
+          "    }, (err, res) => {",
+          "        if (err) return;",
+          "        const body = res.json();",
+          "        pm.collectionVariables.set('access_token', body.access_token);",
+          "        pm.collectionVariables.set('token_expires_at', now + (body.expires_in - 30) * 1000);",
+          "    });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    { "key": "base_url",          "value": "http://localhost:8086" },
+    { "key": "access_token",      "value": "" },
+    { "key": "token_expires_at",  "value": "0" },
+    { "key": "order_id",          "value": "" },
+    { "key": "customer_id",       "value": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET /actuator/health",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/actuator/health",
+            "description": "Verifica o status do serviço"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notificações",
+      "item": [
+        {
+          "name": "GET /notifications — lista todas",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Accept",        "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/notifications?page=0&size=20",
+              "host": ["{{base_url}}"],
+              "path": ["notifications"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" }
+              ]
+            },
+            "description": "Lista todas as notificações (mais recentes primeiro)."
+          }
+        },
+        {
+          "name": "GET /notifications/order/{orderId} — por pedido",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Accept",        "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/notifications/order/{{order_id}}?page=0&size=20",
+              "host": ["{{base_url}}"],
+              "path": ["notifications", "order", "{{order_id}}"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" }
+              ]
+            },
+            "description": "Lista notificações de um pedido específico. Substitua {{order_id}} por um orderId real após criar um pedido no fluxo completo."
+          }
+        },
+        {
+          "name": "GET /notifications/customer/{customerId} — por cliente",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Accept",        "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/notifications/customer/{{customer_id}}?page=0&size=50",
+              "host": ["{{base_url}}"],
+              "path": ["notifications", "customer", "{{customer_id}}"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "50" }
+              ]
+            },
+            "description": "Lista todas as notificações de um cliente. Usa o customer_id padrão dos testes (aaaaaaaa...)."
+          }
+        },
+        {
+          "name": "GET /notifications — sem autenticação (401)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{base_url}}/notifications",
+            "description": "Deve retornar 401 Unauthorized."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Fluxo Completo — Verificar notificações",
+      "item": [
+        {
+          "name": "1. [order-service] POST /orders",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "url": "http://localhost:8082/orders",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa\",\n  \"items\": [\n    {\n      \"productId\": \"11111111-1111-1111-1111-111111111111\",\n      \"productName\": \"Notebook Pro\",\n      \"quantity\": 1,\n      \"unitPrice\": 2000.00\n    }\n  ]\n}"
+            },
+            "description": "Passo 1: Cria pedido e inicia a saga. Copie o orderId da resposta para {{order_id}}."
+          }
+        },
+        {
+          "name": "2. [notification-service] GET /notifications/order/{orderId}",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/notifications/order/{{order_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["notifications", "order", "{{order_id}}"]
+            },
+            "description": "Passo 2: Aguardar ~10s e verificar. Deve ter até 5 notificações:\n- order.created.v1\n- payment.authorized.v1\n- inventory.reserved.v1\n- shipping.created.v1\n- order.completed.v1"
+          }
+        },
+        {
+          "name": "3. [notification-service] GET /notifications/customer/{customerId}",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/notifications/customer/{{customer_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["notifications", "customer", "{{customer_id}}"]
+            },
+            "description": "Passo 3: Ver todas as notificações do cliente acumuladas ao longo dos testes."
+          }
+        }
+      ]
+    }
+  ]
+}

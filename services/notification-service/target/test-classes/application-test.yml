@@ -1,0 +1,15 @@
+spring:
+  kafka:
+    bootstrap-servers: ${spring.embedded.kafka.brokers}
+    consumer:
+      auto-offset-reset: earliest
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://localhost:9999/realms/mini-mercado-livre/protocol/openid-connect/certs
+
+logging:
+  level:
+    com.miniml.notification: DEBUG
+    org.springframework.kafka: WARN

@@ -1,0 +1,117 @@
+<a routerLink="/orders" class="back-link">&#8592; Meus Pedidos</a>
+
+@if (loading()) {
+  <div class="loading">Carregando pedido...</div>
+} @else if (error()) {
+  <div class="error-msg">{{ error() }}</div>
+} @else if (order()) {
+  <div class="order-detail-layout">
+    <!-- Order header -->
+    <div class="order-header card">
+      <div class="card-body">
+        <div class="order-header-content">
+          <div>
+            <div class="order-header-id">
+              Pedido #{{ order()!.id.substring(0, 8).toUpperCase() }}
+            </div>
+            <div class="order-header-full-id text-sm text-muted">
+              ID: {{ order()!.id }}
+            </div>
+          </div>
+          <div class="order-header-meta">
+            <span [class]="statusClass(order()!.status)">
+              {{ statusLabel(order()!.status) }}
+            </span>
+          </div>
+        </div>
+
+        <div class="order-header-info">
+          <div class="order-info-item">
+            <span class="info-label">Data do Pedido</span>
+            <span class="info-value">{{ formatDate(order()!.createdAt) }}</span>
+          </div>
+          <div class="order-info-item">
+            <span class="info-label">Ultima Atualizacao</span>
+            <span class="info-value">{{ formatDate(order()!.updatedAt) }}</span>
+          </div>
+          <div class="order-info-item">
+            <span class="info-label">Moeda</span>
+            <span class="info-value">{{ order()!.currency }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Items table -->
+    <div class="card">
+      <div class="order-items-header">
+        <h2 class="order-section-title">Itens do Pedido</h2>
+      </div>
+      <table class="order-items-table">
+        <thead>
+          <tr>
+            <th>Produto</th>
+            <th class="text-right">Preco Unit.</th>
+            <th class="text-center">Qtd.</th>
+            <th class="text-right">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of order()!.items; track item.id) {
+            <tr class="item-row">
+              <td>
+                <div class="item-product-name">{{ item.productTitle }}</div>
+                <div class="text-sm text-muted">ID: {{ item.productId.substring(0, 8) }}...</div>
+              </td>
+              <td class="text-right">
+                <span class="text-sm">{{ formatPrice(item.unitPrice) }}</span>
+              </td>
+              <td class="text-center">
+                <span class="item-qty">{{ item.quantity }}</span>
+              </td>
+              <td class="text-right">
+                <span class="price font-semibold">{{ formatPrice(item.lineTotal) }}</span>
+              </td>
+            </tr>
+          }
+        </tbody>
+        <tfoot>
+          <tr class="total-row">
+            <td colspan="3" class="text-right total-label">
+              <strong>Total do Pedido</strong>
+            </td>
+            <td class="text-right">
+              <strong class="price total-amount">{{ formatPrice(order()!.totalAmount) }}</strong>
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <!-- Cancel section -->
+    @if (canCancel(order()!.status)) {
+      <div class="cancel-section card">
+        <div class="card-body">
+          <h3 class="cancel-title">Cancelar Pedido</h3>
+          <p class="text-sm text-muted cancel-description">
+            Pedidos com status "Pendente" podem ser cancelados. Esta acao nao pode ser desfeita.
+          </p>
+          @if (cancelError()) {
+            <div class="error-msg">{{ cancelError() }}</div>
+          }
+          <button
+            class="btn btn-danger"
+            [disabled]="cancelling()"
+            (click)="cancelOrder()"
+          >
+            @if (cancelling()) {
+              Cancelando...
+            } @else {
+              Cancelar Pedido
+            }
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+}

@@ -1,0 +1,550 @@
+{
+  "info": {
+    "name": "Mini Mercado Livre — API Gateway",
+    "_postman_id": "f6a7b8c9-d0e1-2345-f012-34567890abcd",
+    "description": "Ponto de entrada único do Mini Mercado Livre.\nBase URL: {{base_url}} (default: http://localhost:8079)\n\nTodos os microsserviços são acessados via este gateway.\nO JWT é validado aqui antes de ser roteado ao downstream.\n\nConvenção de paths:\n  /api/v1/products/**    → catalog-service   :8081\n  /api/v1/orders/**     → order-service     :8082\n  /api/v1/payments/**   → payment-service   :8083\n  /api/v1/inventory/**  → inventory-service :8084\n  /api/v1/reservations/** → inventory-service :8084\n  /api/v1/shippings/**  → shipping-service  :8085\n  /api/v1/notifications/** → notification-service :8086\n\nO script de pré-requisição da coleção obtém o token do Keycloak\nautomaticamente. Configure as variáveis keycloak_user e keycloak_pass.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Auto-obtém token do Keycloak (user1 por padrão)",
+          "const tokenUrl = 'http://localhost:8080/realms/mini-mercado-livre/protocol/openid-connect/token';",
+          "const username = pm.collectionVariables.get('keycloak_user') || 'user1';",
+          "const password = pm.collectionVariables.get('keycloak_pass') || 'user1pass';",
+          "const clientId = 'mini-ml-frontend';",
+          "",
+          "const expiresAt = pm.collectionVariables.get('token_expires_at');",
+          "if (!expiresAt || Date.now() >= parseInt(expiresAt)) {",
+          "    pm.sendRequest({",
+          "        url: tokenUrl,",
+          "        method: 'POST',",
+          "        header: { 'Content-Type': 'application/x-www-form-urlencoded' },",
+          "        body: {",
+          "            mode: 'urlencoded',",
+          "            urlencoded: [",
+          "                { key: 'grant_type', value: 'password' },",
+          "                { key: 'client_id', value: clientId },",
+          "                { key: 'username', value: username },",
+          "                { key: 'password', value: password }",
+          "            ]",
+          "        }",
+          "    }, (err, res) => {",
+          "        if (err) { console.error('Erro ao obter token:', err); return; }",
+          "        const body = res.json();",
+          "        pm.collectionVariables.set('access_token', body.access_token);",
+          "        pm.collectionVariables.set('token_expires_at', Date.now() + (body.expires_in - 30) * 1000);",
+          "        console.log('Token renovado para usuário:', username);",
+          "    });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    { "key": "base_url",           "value": "http://localhost:8079" },
+    { "key": "access_token",       "value": "" },
+    { "key": "admin_token",        "value": "", "description": "Token admin1/admin1pass (ROLE_ADMIN)" },
+    { "key": "token_expires_at",   "value": "0" },
+    { "key": "keycloak_user",      "value": "user1",     "description": "Usuário para auto-login" },
+    { "key": "keycloak_pass",      "value": "user1pass", "description": "Senha para auto-login" },
+    { "key": "ultimo_pedido_id",   "value": "" },
+    { "key": "ultimo_customer_id", "value": "" },
+    { "key": "produto_id",         "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Gateway",
+      "item": [
+        {
+          "name": "GET /actuator/health — sem autenticação",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Gateway UP', () => {",
+            "    pm.expect(pm.response.json().status).to.equal('UP');",
+            "});"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/actuator/health"
+          }
+        },
+        {
+          "name": "GET /actuator/gateway/routes — rotas configuradas",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Retorna array de rotas', () => {",
+            "    pm.expect(pm.response.json()).to.be.an('array');",
+            "    pm.expect(pm.response.json().length).to.be.above(0);",
+            "});"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/actuator/gateway/routes"
+          }
+        },
+        {
+          "name": "Rota inexistente sem auth → 401",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 401', () => pm.response.to.have.status(401));"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/rota-inexistente"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Catalog Service (via Gateway)",
+      "item": [
+        {
+          "name": "GET /api/v1/products — público, sem auth",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Tem paginação', () => {",
+            "    const body = pm.response.json();",
+            "    pm.expect(body).to.have.property('content');",
+            "    pm.expect(body).to.have.property('totalElements');",
+            "});",
+            "if (pm.response.json().content.length > 0) {",
+            "    pm.collectionVariables.set('produto_id', pm.response.json().content[0].id);",
+            "}"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/products",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "products"]
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/products?query=iphone — público, sem auth",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/products?query=iphone",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "products"],
+              "query": [{ "key": "query", "value": "iphone" }]
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/products/{id} — produto por ID",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200 ou 404', () => {",
+            "    pm.expect([200, 404]).to.include(pm.response.code);",
+            "});"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/products/{{produto_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "products", "{{produto_id}}"]
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/products — sem auth → 401",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 401 (gateway recusa sem JWT)', () => pm.response.to.have.status(401));"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"title\":\"Teste\"}", "options": { "raw": { "language": "json" } } },
+            "url": {
+              "raw": "{{base_url}}/api/v1/products",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "products"]
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/products — com ROLE_ADMIN",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "// Gateway aceita JWT (não retorna 401); downstream pode retornar 201/400",
+            "pm.test('Não é 401 (JWT aceito pelo gateway)', () => {",
+            "    pm.expect(pm.response.code).to.not.equal(401);",
+            "});"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Produto via Gateway\",\n  \"description\": \"Criado pelo gateway\",\n  \"price\": 99.99,\n  \"stock\": 10,\n  \"category\": \"ELECTRONICS\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/products",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "products"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Order Service (via Gateway)",
+      "item": [
+        {
+          "name": "GET /api/v1/orders — sem auth → 401",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 401', () => pm.response.to.have.status(401));"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/orders"
+          }
+        },
+        {
+          "name": "POST /api/v1/orders — criar pedido (auto-token user1)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Não é 401 (JWT aceito pelo gateway)', () => {",
+            "    pm.expect(pm.response.code).to.not.equal(401);",
+            "});",
+            "if (pm.response.code === 201) {",
+            "    const body = pm.response.json();",
+            "    pm.collectionVariables.set('ultimo_pedido_id', body.id);",
+            "    pm.collectionVariables.set('ultimo_customer_id', body.customerId);",
+            "    console.log('Pedido criado:', body.id);",
+            "}"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n  \"items\": [\n    {\n      \"productId\": \"11111111-1111-1111-1111-111111111111\",\n      \"productTitle\": \"iPhone 15 Pro\",\n      \"unitPrice\": 7999.99,\n      \"quantity\": 1\n    }\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "orders"]
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/orders/{id} — buscar pedido",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Não é 401', () => pm.expect(pm.response.code).to.not.equal(401));"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders/{{ultimo_pedido_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "orders", "{{ultimo_pedido_id}}"]
+            }
+          }
+        },
+        {
+          "name": "PATCH /api/v1/orders/{id}/cancel — cancelar pedido",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Não é 401', () => pm.expect(pm.response.code).to.not.equal(401));"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders/{{ultimo_pedido_id}}/cancel",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "orders", "{{ultimo_pedido_id}}", "cancel"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Inventory Service (via Gateway)",
+      "item": [
+        {
+          "name": "GET /api/v1/inventory — sem auth → 401",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 401', () => pm.response.to.have.status(401));"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/inventory"
+          }
+        },
+        {
+          "name": "GET /api/v1/inventory — com auth",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Não é 401', () => pm.expect(pm.response.code).to.not.equal(401));"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/inventory",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "inventory"]
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/inventory/{productId}",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Não é 401', () => pm.expect(pm.response.code).to.not.equal(401));"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/inventory/11111111-1111-1111-1111-111111111111",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "inventory", "11111111-1111-1111-1111-111111111111"]
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/reservations/order/{orderId}",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Não é 401', () => pm.expect(pm.response.code).to.not.equal(401));"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/reservations/order/{{ultimo_pedido_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "reservations", "order", "{{ultimo_pedido_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payment Service (via Gateway)",
+      "item": [
+        {
+          "name": "GET /api/v1/payments — sem auth → 401",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 401', () => pm.response.to.have.status(401));"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/payments"
+          }
+        },
+        {
+          "name": "GET /api/v1/payments/order/{orderId}",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Não é 401', () => pm.expect(pm.response.code).to.not.equal(401));"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/payments/order/{{ultimo_pedido_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "payments", "order", "{{ultimo_pedido_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Shipping Service (via Gateway)",
+      "item": [
+        {
+          "name": "GET /api/v1/shippings/order/{orderId}",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Não é 401', () => pm.expect(pm.response.code).to.not.equal(401));"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/shippings/order/{{ultimo_pedido_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "shippings", "order", "{{ultimo_pedido_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notification Service (via Gateway)",
+      "item": [
+        {
+          "name": "GET /api/v1/notifications — com auth",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Não é 401', () => pm.expect(pm.response.code).to.not.equal(401));"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/notifications",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "notifications"]
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/notifications/order/{orderId}",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Não é 401', () => pm.expect(pm.response.code).to.not.equal(401));"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/notifications/order/{{ultimo_pedido_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "notifications", "order", "{{ultimo_pedido_id}}"]
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/notifications — sem auth → 401",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 401', () => pm.response.to.have.status(401));"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/notifications"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Fluxo Saga Completo (via Gateway)",
+      "item": [
+        {
+          "name": "1. POST /api/v1/orders — criar pedido",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.response.code === 201) {",
+            "    pm.collectionVariables.set('ultimo_pedido_id', pm.response.json().id);",
+            "    pm.collectionVariables.set('ultimo_customer_id', pm.response.json().customerId);",
+            "    console.log('Pedido:', pm.response.json().id);",
+            "}"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa\",\n  \"items\": [\n    {\n      \"productId\": \"11111111-1111-1111-1111-111111111111\",\n      \"productTitle\": \"iPhone 15 Pro\",\n      \"unitPrice\": 7999.99,\n      \"quantity\": 2\n    },\n    {\n      \"productId\": \"22222222-2222-2222-2222-222222222222\",\n      \"productTitle\": \"AirPods Pro\",\n      \"unitPrice\": 1799.90,\n      \"quantity\": 1\n    }\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{base_url}}/api/v1/orders", "host": ["{{base_url}}"], "path": ["api","v1","orders"] }
+          }
+        },
+        {
+          "name": "2. GET /api/v1/payments/order/{orderId} — aguardar pagamento",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{base_url}}/api/v1/payments/order/{{ultimo_pedido_id}}", "host": ["{{base_url}}"], "path": ["api","v1","payments","order","{{ultimo_pedido_id}}"] },
+            "description": "Aguarde ~2s para o outbox publicar payment.authorized.v1"
+          }
+        },
+        {
+          "name": "3. GET /api/v1/reservations/order/{orderId} — verificar reserva",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{base_url}}/api/v1/reservations/order/{{ultimo_pedido_id}}", "host": ["{{base_url}}"], "path": ["api","v1","reservations","order","{{ultimo_pedido_id}}"] },
+            "description": "Aguarde ~2s para o inventory processar payment.authorized.v1"
+          }
+        },
+        {
+          "name": "4. GET /api/v1/shippings/order/{orderId} — verificar envio",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{base_url}}/api/v1/shippings/order/{{ultimo_pedido_id}}", "host": ["{{base_url}}"], "path": ["api","v1","shippings","order","{{ultimo_pedido_id}}"] },
+            "description": "Aguarde ~2s para o shipping processar inventory.reserved.v1"
+          }
+        },
+        {
+          "name": "5. GET /api/v1/orders/{id} — pedido COMPLETED",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/api/v1/orders/{{ultimo_pedido_id}}", "host": ["{{base_url}}"], "path": ["api","v1","orders","{{ultimo_pedido_id}}"] },
+            "description": "Pedido deve estar COMPLETED após todos os eventos da saga serem processados"
+          }
+        },
+        {
+          "name": "6. GET /api/v1/notifications/order/{orderId} — notificações",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{base_url}}/api/v1/notifications/order/{{ultimo_pedido_id}}", "host": ["{{base_url}}"], "path": ["api","v1","notifications","order","{{ultimo_pedido_id}}"] },
+            "description": "Verifica notificações geradas ao longo da saga"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Actuator",
+      "item": [
+        {
+          "name": "Health",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Gateway UP', () => pm.expect(pm.response.json().status).to.equal('UP'));"
+          ], "type": "text/javascript" } }],
+          "request": { "method": "GET", "url": "{{base_url}}/actuator/health" }
+        },
+        {
+          "name": "Prometheus",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Contém métricas JVM', () => pm.expect(pm.response.text()).to.include('jvm_'));"
+          ], "type": "text/javascript" } }],
+          "request": { "method": "GET", "url": "{{base_url}}/actuator/prometheus" }
+        },
+        {
+          "name": "Rotas configuradas",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('7 rotas configuradas', () => {",
+            "    pm.expect(pm.response.json().length).to.equal(7);",
+            "});"
+          ], "type": "text/javascript" } }],
+          "request": { "method": "GET", "url": "{{base_url}}/actuator/gateway/routes" }
+        }
+      ]
+    }
+  ]
+}
