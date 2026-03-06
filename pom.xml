@@ -20,6 +20,7 @@
     <module>services/shipping-service</module>
     <module>services/notification-service</module>
     <module>services/api-gateway</module>
+    <module>services/user-service</module>
   </modules>
 
 </project>

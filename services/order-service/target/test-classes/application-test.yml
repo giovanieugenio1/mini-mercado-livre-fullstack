@@ -1,5 +1,0 @@
-# Sobrescreve apenas o que muda nos testes de integração
-spring:
-  kafka:
-    # @EmbeddedKafka injeta a porta real via spring.embedded.kafka.brokers
-    bootstrap-servers: ${spring.embedded.kafka.brokers}
